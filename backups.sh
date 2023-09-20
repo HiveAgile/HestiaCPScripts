@@ -167,10 +167,10 @@ backup_containers() {
 
   # Realiza la copia de seguridad
   cd $BACKUP_DIR
-  tar -czvf docker-backup_$HOSTANME-$backupDate.tar.gz ${all_docker_dirs[@]}
+  tar -czvf docker-backup_$HOSTNAME-$backupDate.tar.gz ${all_docker_dirs[@]}
   if [ $? -eq 0 ]; then
 
-    backup_size=$(du -h docker-backup_$HOSTANME-$backupDate.tar.gz | awk '{print $1}')
+    backup_size=$(du -h docker-backup_$HOSTNAME-$backupDate.tar.gz | awk '{print $1}')
 
     echo "Copia de seguridad realizada con éxito."
     send_telegram_message "🎉 Copia de seguridad completada con éxito en $HOSTNAME.Tamaño: $backup_size."
@@ -190,7 +190,7 @@ for dir in "${running_containers_dirs[@]}"; do
   docker-compose start
 done
 
-echo "La copia de seguridad local se ha completado en ${BACKUP_DIR}/docker-backup_$HOSTANME-$backupDate.tar.gz"
+echo "La copia de seguridad local se ha completado en ${BACKUP_DIR}/docker-backup_$HOSTNAME-$backupDate.tar.gz"
 
 echo " "
 echo "Sincronizando remoto"
