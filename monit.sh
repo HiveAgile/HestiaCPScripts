@@ -145,6 +145,8 @@ set log /var/log/monit.log
 set idfile /var/lib/monit/id
 set statefile /var/lib/monit/state
 
+set daemon 120
+
 set eventqueue
     basedir /var/lib/monit/events
     slots 100                     
