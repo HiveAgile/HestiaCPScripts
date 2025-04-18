@@ -145,6 +145,27 @@ check program hestia_docker with path "/usr/local/bin/check_hestia_docker.sh"
   if status != 0 then exec "/bin/true"
 EOF
 
+## Iptables de Hestiacp
+cat << EOF > $MONIT_DIR/hestia_iptables
+check program hestia_iptables with path "/usr/local/bin/check_hestia_iptables.sh"
+  if status != 0 then exec "/bin/systemctl restart hestia-iptables.service"
+EOF
+
+cat << 'EOF' > /usr/local/bin/check_hestia_iptables.sh
+#!/bin/bash
+
+# Verificar si el servicio está activo
+if systemctl is-active --quiet hestia-iptables.service; then
+  echo "✅ hestia-iptables está activo."
+  exit 0
+else
+  echo "❌ hestia-iptables está inactivo o fallando."
+  exit 1
+fi
+EOF
+
+chmod +x /usr/local/bin/check_hestia_iptables.sh
+
 
 
 
