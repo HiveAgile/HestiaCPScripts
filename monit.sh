@@ -140,8 +140,10 @@ chmod +x /usr/local/bin/check_hestia_docker.sh
 
 cat << EOF > $MONIT_DIR/hestia_docker
 check program hestia_docker with path "/usr/local/bin/check_hestia_docker.sh"
-  every 2 cycles
+  if status != 0 then exec "/bin/true"
 EOF
+
+
 
 
 ## Monit DNS
