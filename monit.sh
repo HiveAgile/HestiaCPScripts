@@ -40,8 +40,8 @@ fi
 cat << EOF > $MONIT_DIR/web-interface
 
 set httpd port 2812
-use address $(curl -s ifconfig.me) #IP Pública de nuestro servidor Cloud
-allow 0.0.0.0/0.0.0.0
+use address $(curl -4 -s ifconfig.me) #IP Pública de nuestro servidor Cloud
+allow 0.0.0.0/0
 allow 'admin':'$MONIT_PASSWORD' # usuario:contraseña cambiar estos datos por otros más seguros
 EOF
 
