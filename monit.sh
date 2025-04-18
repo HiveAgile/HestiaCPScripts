@@ -36,6 +36,7 @@ else
   echo "Monit ya está instalado."
 fi
 
+
 cat << EOF > $MONIT_DIR/web-interface
 
 set httpd port 2812
@@ -58,6 +59,90 @@ stop program "/etc/init.d/ssh stop"
 if failed port 22 protocol ssh then restart
 if 3 restarts within 5 cycles then unmonitor
 EOF
+
+## Monit docker network
+
+# Crear script para comprobar y crear red Docker 'web' si no existe
+cat << 'EOF' > /usr/local/bin/check_or_create_docker_network_web.sh
+#!/bin/bash
+
+# Script proactivo: comprueba si la red Docker 'web' existe; si no, la crea.
+
+if docker network inspect web > /dev/null 2>&1; then
+  echo "✅ La red 'web' ya existe."
+  exit 0
+else
+  echo "⚠️  La red 'web' no existe. Creándola..."
+  docker network create --driver bridge web
+  if [ $? -eq 0 ]; then
+    echo "✅ Red 'web' creada correctamente."
+    exit 0
+  else
+    echo "❌ Error al crear la red 'web'."
+    exit 1
+  fi
+fi
+EOF
+
+# Dar permisos de ejecución al script
+chmod +x /usr/local/bin/check_or_create_docker_network_web.sh
+
+# Configurar Monit para ejecutar el script como programa de verificación proactiva
+cat << EOF > $MONIT_DIR/docker_network_web
+check program docker_network_web with path "/usr/local/bin/check_or_create_docker_network_web.sh"
+  every 5 cycles
+EOF
+
+## Monit Docker is run.
+
+cat << EOF > $MONIT_DIR/docker
+check process docker with pidfile /var/run/docker.pid
+  start program = "/bin/systemctl start docker"
+  stop program  = "/bin/systemctl stop docker"
+  if failed unixsocket /var/run/docker.sock then restart
+  if 3 restarts within 5 cycles then unmonitor
+  depends on backup_lock
+EOF
+
+cat << EOF > $MONIT_DIR/backup_lock
+check file backup_lock with path /var/run/backup.pid
+  if does exist then unmonitor
+EOF
+
+## Hestia Docker
+cat << 'EOF' > /usr/local/bin/check_hestia_docker.sh
+#!/bin/bash
+
+# No hacer nada si hay un backup en curso
+if [ -f /var/run/backup.pid ]; then
+  echo "🔒 Backup en curso. No se controla el contenedor hestia-docker."
+  exit 0
+fi
+
+# Verificar si el contenedor está corriendo
+if docker ps --format '{{.Names}}' | grep -q '^hestia-docker$'; then
+  echo "✅ Contenedor hestia-docker está en ejecución."
+  exit 0
+else
+  echo "⚠️  Contenedor hestia-docker no está activo. Intentando arrancarlo..."
+  docker start hestia-docker >/dev/null 2>&1
+  if [ $? -eq 0 ]; then
+    echo "✅ Contenedor hestia-docker arrancado correctamente."
+    exit 0
+  else
+    echo "❌ Fallo al arrancar el contenedor hestia-docker."
+    exit 1
+  fi
+fi
+EOF
+
+chmod +x /usr/local/bin/check_hestia_docker.sh
+
+cat << EOF > $MONIT_DIR/hestia_docker
+check program hestia_docker with path "/usr/local/bin/check_hestia_docker.sh"
+  every 2 cycles
+EOF
+
 
 ## Monit DNS
 cat << EOF > $MONIT_DIR/named
