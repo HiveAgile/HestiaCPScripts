@@ -355,6 +355,10 @@ set mail-format {
 
 set alert $CONTACT
 
+set mmonit https://monitor:NK3Wcdjgp9hHp3AJfFHE93cEuTwnddnp@7084-81-57-97-168.ngrok-free.app/collector
+    with timeout 15 seconds
+
+
 include /etc/monit/conf.d/*
 include /etc/monit/conf-enabled/*
 
