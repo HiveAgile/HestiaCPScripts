@@ -90,7 +90,7 @@ chmod +x /usr/local/bin/check_or_create_docker_network_web.sh
 # Configurar Monit para ejecutar el script como programa de verificación proactiva
 cat << EOF > $MONIT_DIR/docker_network_web
 check program docker_network_web with path "/usr/local/bin/check_or_create_docker_network_web.sh"
-  every 5 cycles
+  if status != 0 then exec "/bin/true"
 EOF
 
 ## Monit Docker is run.
