@@ -197,9 +197,69 @@ check program elf_home with path "/usr/local/bin/check_elf_binaries.sh"
   if status != 0 then alert
 EOF
 
+## Monit Dockers
 
+# Crear script de monitoreo proactivo de contenedores Docker
+cat << 'EOF' > /usr/local/bin/docker-check-health.sh
+#!/usr/bin/env bash
 
+# Obtener lista de contenedores con problemas
+UNHEALTHY_IDS="$(docker ps -q \
+    -f health="unhealthy" \
+    -f status="exited" \
+    -f status="dead" \
+    -f status="paused")"
 
+# Mostrar estado de todos los contenedores
+echo "📋 Estado actual de contenedores Docker:"
+echo "----------------------------------------"
+docker ps -a --format '{{if or (eq .State "running") (eq .State "starting")}}{{printf "✅ %-20s %s" .Names .Status}}{{else}}{{printf "❌ %-20s %s" .Names .Status}}{{end}}'
+
+echo ""
+
+# Si no hay contenedores en mal estado
+if [[ -z "$UNHEALTHY_IDS" ]]; then
+    echo "✅ Todos los contenedores están sanos."
+    exit 0
+fi
+
+# Reiniciar solo los que tienen problemas
+echo "🚨 Contenedores con problemas detectados. Reiniciando..."
+echo "--------------------------------------------------------"
+for id in $UNHEALTHY_IDS; do
+    NAME=$(docker inspect --format '{{.Name}}' "$id" | cut -c2-)
+    echo "↪️ Reiniciando: $NAME ($id)"
+    docker restart "$id" >/dev/null 2>&1
+done
+
+# Segunda verificación tras reinicio
+RECHECK_IDS="$(docker ps -q \
+    -f health="unhealthy" \
+    -f status="exited" \
+    -f status="dead" \
+    -f status="paused")"
+
+if [[ -z "$RECHECK_IDS" ]]; then
+    echo "✅ Todos los contenedores fueron recuperados tras reinicio."
+    exit 0
+else
+    echo "❌ Algunos contenedores siguen fallando tras el reinicio:"
+    docker ps -a --format '{{printf "❌ %-20s %s" .Names .Status}}' -f id="$RECHECK_IDS"
+    exit 1
+fi
+EOF
+
+# Dar permisos de ejecución
+chmod +x /usr/local/bin/docker-check-health.sh
+
+# Crear configuración de Monit
+cat << EOF > /etc/monit/conf.d/docker_health
+## Monitorea contenedores Docker y los reinicia si están en mal estado
+check program docker-health with path "/usr/local/bin/docker-check-health.sh"
+    with timeout 10 seconds
+    every 10 cycles
+    if status != 0 then alert
+EOF
 
 
 ## Monit DNS
