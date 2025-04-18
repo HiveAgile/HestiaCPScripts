@@ -247,6 +247,48 @@ check process nginx with pidfile /var/run/nginx.pid
   if failed url http://localhost:8084/ and content = "Active connections:" then alert
 EOF
 
+## Monit LetsEncrypt
+
+cat << 'EOF' > /usr/local/bin/fix_resolv_and_check_letsencrypt.sh
+#!/bin/bash
+
+# Quitar protecciones para modificar el resolv.conf
+chattr -i /etc/resolv.conf 2>/dev/null
+chattr -a /etc/resolv.conf 2>/dev/null
+
+# Reescribir resolv.conf con DNS fiables
+cat << RESOLV > /etc/resolv.conf
+options rotate timeout:1 attempts:2 edns0
+search one.one.one.one dns.google
+nameserver 2606:4700:4700::1111
+nameserver 2606:4700:4700::1001
+nameserver 1.1.1.1
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+RESOLV
+
+# Volver a protegerlo para que no sea modificado
+chattr +a +i /etc/resolv.conf
+
+# Verificar acceso a Let's Encrypt
+curl -sSf --max-time 10 https://acme-v02.api.letsencrypt.org/directory > /dev/null
+
+if [ $? -eq 0 ]; then
+  echo "✅ Let's Encrypt está accesible."
+  exit 0
+else
+  echo "❌ No se pudo acceder a Let's Encrypt."
+  exit 1
+fi
+EOF
+
+chmod +x /usr/local/bin/fix_resolv_and_check_letsencrypt.sh
+
+cat << EOF > $MONIT_DIR/letsencrypt_dns
+check program letsencrypt_dns with path "/usr/local/bin/fix_resolv_and_check_letsencrypt.sh"
+  every 5 cycles
+  if status != 0 then alert
+EOF
 
 
 ## SMTP Config
