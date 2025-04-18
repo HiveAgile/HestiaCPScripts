@@ -110,7 +110,7 @@ check file backup_lock with path /var/run/backup.pid
 EOF
 
 ## Hestia Docker
-cat << 'EOF' > /usr/local/bin/check_hestia_docker.sh
+cat << EOF > /usr/local/bin/check_hestia_docker.sh
 #!/bin/bash
 
 # No hacer nada si hay un backup en curso
@@ -119,24 +119,26 @@ if [ -f /var/run/backup.pid ]; then
   exit 0
 fi
 
-# Verificar si el contenedor está corriendo
-if docker ps --format '{{.Names}}' | grep -q '^hestia-docker$'; then
+# Verificar si hay algún contenedor que incluya 'hestia-docker' corriendo
+if docker ps --format '{{.Names}}' | grep -q hestia-docker; then
   echo "✅ Contenedor hestia-docker está en ejecución."
   exit 0
 else
   echo "⚠️  Contenedor hestia-docker no está activo. Intentando arrancarlo..."
-  docker start hestia-docker >/dev/null 2>&1
-  if [ $? -eq 0 ]; then
-    echo "✅ Contenedor hestia-docker arrancado correctamente."
+  CONTAINER_NAME=\$(docker ps -a --format '{{.Names}}' | grep hestia-docker | head -n 1)
+  docker start "\$CONTAINER_NAME" >/dev/null 2>&1
+  if [ \$? -eq 0 ]; then
+    echo "✅ Contenedor \$CONTAINER_NAME arrancado correctamente."
     exit 0
   else
-    echo "❌ Fallo al arrancar el contenedor hestia-docker."
+    echo "❌ Fallo al arrancar el contenedor \$CONTAINER_NAME."
     exit 1
   fi
 fi
 EOF
 
 chmod +x /usr/local/bin/check_hestia_docker.sh
+
 
 cat << EOF > $MONIT_DIR/hestia_docker
 check program hestia_docker with path "/usr/local/bin/check_hestia_docker.sh"
