@@ -166,6 +166,39 @@ EOF
 
 chmod +x /usr/local/bin/check_hestia_iptables.sh
 
+## Antimalware
+
+#!/bin/bash
+
+# Crear el script que busca ejecutables ELF sospechosos fuera de /home/*/bin
+cat << 'EOF' > /usr/local/bin/check_elf_binaries.sh
+#!/bin/bash
+
+# Buscar ejecutables ELF fuera de /home/*/bin (posible malware)
+RESULT=$(find /home -type d -name bin -prune -o -type f -perm -111 -exec file {} + 2>/dev/null | grep -i "ELF")
+
+if [ -n "$RESULT" ]; then
+  echo "🚨 Posible malware detectado: ejecutables ELF fuera de /home/*/bin:"
+  echo "$RESULT"
+  exit 1
+else
+  echo "✅ Sin binarios ELF sospechosos detectados en /home (excluyendo bin/)."
+  exit 0
+fi
+EOF
+
+# Dar permisos de ejecución
+chmod +x /usr/local/bin/check_elf_binaries.sh
+
+# Crear configuración de Monit
+cat << EOF > /etc/monit/conf.d/elf_home
+check program elf_home with path "/usr/local/bin/check_elf_binaries.sh"
+  every 30 cycles
+  if status != 0 then alert
+EOF
+
+
+
 
 
 
